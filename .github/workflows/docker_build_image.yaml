@@ -1,0 +1,48 @@
+name: Build and Push Lambda Image
+env:
+    ECR_REPOSITORY_NAME: test-ecr-repo
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        id: configure-aws-credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/role-sonamegpt-github-actions-all
+          role-session-name: github-actions-build
+          aws-region: ${{ secrets.AWS_REGION }}
+     
+
+      - name: Authenticate with ECR
+        id: ecr-login
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+
+      - name: Build Docker Image
+        run: |
+          docker build --provenance=false --progress=plain -t ${{env.ECR_REPOSITORY_NAME}} -f Dockerfile src
+
+      - name: Tag Docker Image
+        run: |
+          docker tag ${{env.ECR_REPOSITORY_NAME}}:latest "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:latest"
+
+      - name: Push Docker Image to ECR
+        run: |
+          docker push "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:latest"
