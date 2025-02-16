@@ -11,7 +11,8 @@ on:
   push:
     branches:
       - main
-
+    tags:
+        - "ver_*"
 jobs:
   build-and-push:
     name: Build and Push Docker Image
@@ -29,11 +30,21 @@ jobs:
           role-session-name: github-actions-build
           aws-region: ${{ secrets.AWS_REGION }}
      
-
       - name: Authenticate with ECR
         id: ecr-login
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+
+      - name: Determine Image Tag
+        id: get-tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+          else
+            TAG_NAME="latest"
+          fi
+          echo "IMAGE_TAG=$TAG_NAME" >> $GITHUB_ENV
+          echo "Image will be tagged as: $TAG_NAME"
 
       - name: Build Docker Image
         run: |
@@ -41,8 +52,8 @@ jobs:
 
       - name: Tag Docker Image
         run: |
-          docker tag ${{env.ECR_REPOSITORY_NAME}}:latest "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:latest"
+          docker tag ${{env.ECR_REPOSITORY_NAME}}:latest "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:${{env.IMAGE_TAG}}"
 
       - name: Push Docker Image to ECR
         run: |
-          docker push "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:latest"
+          docker push "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{env.ECR_REPOSITORY_NAME}}:${{env.IMAGE_TAG}}"
