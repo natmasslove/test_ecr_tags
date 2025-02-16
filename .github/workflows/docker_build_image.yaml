@@ -37,7 +37,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build --provenance=false --progress=plain -t ${{env.ECR_REPOSITORY_NAME}} -f Dockerfile src
+          docker build --provenance=false --progress=plain -t ${{env.ECR_REPOSITORY_NAME}} -f src/Dockerfile src
 
       - name: Tag Docker Image
         run: |
