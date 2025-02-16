@@ -9,3 +9,5 @@ cd infra
 tofu init
 tofu apply
 ```
+
+   
